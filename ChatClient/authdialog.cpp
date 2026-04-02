@@ -11,9 +11,7 @@ AuthDialog::AuthDialog(QWidget *parent) :
     m_isProcessing(false)
 {
     ui->setupUi(this);
-    connect(ui->loginButton, &QPushButton::clicked, this, &AuthDialog::on_loginButton_clicked);
-    connect(ui->registerButton, &QPushButton::clicked, this, &AuthDialog::on_registerButton_clicked);
-    connect(ui->exitButton, &QPushButton::clicked, this, &AuthDialog::on_exitButton_clicked);
+    // Buttons are already connected via UI file
 }
 
 AuthDialog::~AuthDialog()

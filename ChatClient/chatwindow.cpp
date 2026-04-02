@@ -1,5 +1,7 @@
 #include "chatwindow.h"
 #include "ui_chatwindow.h"
+#include "lobbywindow.h"
+#include <QApplication>
 #include <QMessageBox>
 #include <QDebug>
 #include <QTimer>
@@ -15,7 +17,6 @@ ChatWindow::ChatWindow(QWidget *parent) :
     connect(ui->sendButton, &QPushButton::clicked, this, &ChatWindow::on_sendButton_clicked);
     connect(ui->leaveButton, &QPushButton::clicked, this, &ChatWindow::on_leaveButton_clicked);
     connect(ui->lineEdit, &QLineEdit::returnPressed, this, &ChatWindow::on_sendButton_clicked);
-    connect(ui->dismissButton, &QPushButton::clicked, this, &ChatWindow::on_dismissButton_clicked);
 }
 
 ChatWindow::~ChatWindow()
@@ -44,11 +45,11 @@ void ChatWindow::setSocket(QTcpSocket *socket)
 void ChatWindow::setIsOwner(bool isOwner)
 {
     m_isOwner = isOwner;
-    // 房主显示管理按钮，隐藏退出按钮
+    // 房主显示管理按钮
     ui->kickButton->setVisible(isOwner);
     ui->muteButton->setVisible(isOwner);
-    ui->dismissButton->setVisible(isOwner);
-    ui->leaveButton->setVisible(!isOwner);
+    // 所有人都显示退出按钮
+    ui->leaveButton->setVisible(true);
 }
 
 void ChatWindow::closeEvent(QCloseEvent *event) {
@@ -60,16 +61,27 @@ void ChatWindow::closeEvent(QCloseEvent *event) {
     closing = true;
 
     if (m_closedByServer) {
+        // 关键：返回大厅时重新接管socket
+        if (parentWidget()) {
+            LobbyWindow *lobby = qobject_cast<LobbyWindow*>(parentWidget());
+            if (lobby) {
+                lobby->setSocket(m_socket);   // 重新接管socket
+            }
+        }
         event->accept();
         return;
     }
 
     if (m_isOwner) {
-        int ret = QMessageBox::question(this, "解散房间", "您是房主，关闭窗口将解散整个房间。确定吗？",
+        int ret = QMessageBox::question(this, "解散房间", "您是房主，关闭窗口将解散整个房间并断开连接。确定吗？",
                                         QMessageBox::Yes | QMessageBox::No);
         if (ret == QMessageBox::Yes) {
             sendPacket("DISMISS_ROOM", m_roomName);
-            event->ignore();
+            // 立即关闭窗口并退出程序
+            m_closedByServer = true;
+            event->accept();
+            // 退出程序
+            QApplication::quit();
         } else {
             event->ignore();
             closing = false;
@@ -103,7 +115,20 @@ void ChatWindow::on_leaveButton_clicked()
 {
     if (m_isLeaving) return;
     m_isLeaving = true;
-    sendPacket("LEAVE_ROOM", "");
+    
+    if (m_isOwner) {
+        int ret = QMessageBox::question(this, "解散房间", "您是房主，关闭窗口将解散整个房间并断开连接。确定吗？",
+                                        QMessageBox::Yes | QMessageBox::No);
+        if (ret == QMessageBox::Yes) {
+            sendPacket("DISMISS_ROOM", m_roomName);
+            // 立即关闭窗口并退出程序
+            m_closedByServer = true;
+            QApplication::quit();
+        }
+    } else {
+        sendPacket("LEAVE_ROOM", "");
+    }
+    
     QTimer::singleShot(2000, this, [this]() { m_isLeaving = false; });
 }
 
@@ -144,16 +169,7 @@ void ChatWindow::on_muteButton_clicked()
     QTimer::singleShot(1000, this, [this]() { ui->muteButton->setEnabled(true); });
 }
 
-void ChatWindow::on_dismissButton_clicked()
-{
-    if (m_isDismissing) return;
-    m_isDismissing = true;
-    int ret = QMessageBox::warning(this, "解散房间", "确定要解散整个房间吗？所有成员将被踢出。", QMessageBox::Yes | QMessageBox::No);
-    if (ret == QMessageBox::Yes) {
-        sendPacket("DISMISS_ROOM", m_roomName);
-    }
-    QTimer::singleShot(2000, this, [this]() { m_isDismissing = false; });
-}
+
 
 void ChatWindow::onSocketDisconnected()
 {
@@ -211,7 +227,11 @@ void ChatWindow::parseMessage(const QByteArray &line)
         addSystemMessage("已退出房间");
         m_closedByServer = true;
         if (parentWidget()) {
-            parentWidget()->show();
+            LobbyWindow *lobby = qobject_cast<LobbyWindow*>(parentWidget());
+            if (lobby) {
+                lobby->setSocket(m_socket);   // 重新接管socket
+                lobby->show();
+            }
         }
         close();
     } else if (type == "ERROR") {
@@ -226,14 +246,22 @@ void ChatWindow::parseMessage(const QByteArray &line)
         addSystemMessage(parts[1]);
         m_closedByServer = true;
         if (parentWidget()) {
-            parentWidget()->show();
+            LobbyWindow *lobby = qobject_cast<LobbyWindow*>(parentWidget());
+            if (lobby) {
+                lobby->setSocket(m_socket);   // 重新接管socket
+                lobby->show();
+            }
         }
         close();
     } else if (type == "KICK_OK") {
         addSystemMessage(parts[1]);
         m_closedByServer = true;
         if (parentWidget()) {
-            parentWidget()->show();
+            LobbyWindow *lobby = qobject_cast<LobbyWindow*>(parentWidget());
+            if (lobby) {
+                lobby->setSocket(m_socket);   // 重新接管socket
+                lobby->show();
+            }
         }
         close();
     } else if (type == "KICK_FAIL") {
@@ -254,7 +282,11 @@ void ChatWindow::parseMessage(const QByteArray &line)
         addSystemMessage(parts[1]);
         m_closedByServer = true;
         if (parentWidget()) {
-            parentWidget()->show();
+            LobbyWindow *lobby = qobject_cast<LobbyWindow*>(parentWidget());
+            if (lobby) {
+                lobby->setSocket(m_socket);   // 重新接管socket
+                lobby->show();
+            }
         }
         close();
     }
@@ -262,7 +294,11 @@ void ChatWindow::parseMessage(const QByteArray &line)
         addSystemMessage("房间已解散");
         m_closedByServer = true;
         if (parentWidget()) {
-            parentWidget()->show();
+            LobbyWindow *lobby = qobject_cast<LobbyWindow*>(parentWidget());
+            if (lobby) {
+                lobby->setSocket(m_socket);   // 重新接管socket
+                lobby->show();
+            }
         }
         close();
     } else if (type == "DISMISS_FAIL") {

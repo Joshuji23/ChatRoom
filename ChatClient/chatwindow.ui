@@ -52,13 +52,7 @@
         </property>
        </widget>
       </item>
-      <item>
-       <widget class="QPushButton" name="dismissButton">
-        <property name="text">
-         <string>解散房间</string>
-        </property>
-       </widget>
-      </item>
+
       <item>
        <widget class="QPushButton" name="leaveButton">
         <property name="text">

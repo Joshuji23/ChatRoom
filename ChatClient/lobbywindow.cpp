@@ -39,6 +39,12 @@ void LobbyWindow::setNickname(const QString &nickname)
     setWindowTitle(QString("大厅 - %1").arg(m_nickname));
 }
 
+void LobbyWindow::detachSocket()
+{
+    if (!m_socket) return;
+    disconnect(m_socket, nullptr, this, nullptr);
+}
+
 void LobbyWindow::setSocket(QTcpSocket *socket)
 {
     m_socket = socket;
@@ -52,7 +58,9 @@ void LobbyWindow::setSocket(QTcpSocket *socket)
         }
     });
     connect(m_socket, &QTcpSocket::disconnected, this, &LobbyWindow::onSocketDisconnected);
-    sendPacket("LIST_ROOMS", "");
+    QTimer::singleShot(100, this, [this](){
+        sendPacket("LIST_ROOMS", "");
+    });
 }
 
 void LobbyWindow::onCreateRoom()
@@ -149,6 +157,9 @@ void LobbyWindow::parseMessage(const QByteArray &line)
         // 请求历史消息
         sendPacket("GET_HISTORY", originalName);
 
+        // 关键：先停止大厅读取socket
+        detachSocket();
+
         ChatWindow *chatWin = new ChatWindow(this);
         chatWin->setAttribute(Qt::WA_DeleteOnClose);
         chatWin->setNickname(m_nickname);
@@ -163,11 +174,21 @@ void LobbyWindow::parseMessage(const QByteArray &line)
     } else if (type == "JOIN_OK") {
         if (parts.size() < 2) return;
         QString originalName = parts[1];
+        
+        // 如果是大厅，不创建聊天窗口，直接显示大厅
+        if (originalName == "Lobby") {
+            this->show();
+            return;
+        }
+        
         bool isOwner = (parts.size() >= 3 && parts[2] == "1");   // 从协议中获取房主标志
         QString displayName = (originalName == "Lobby") ? "大厅" : originalName;
 
         // 请求历史消息
         sendPacket("GET_HISTORY", originalName);
+
+        // 关键：先停止大厅读取socket
+        detachSocket();
 
         // 创建聊天窗口
         ChatWindow *chatWin = new ChatWindow(this);

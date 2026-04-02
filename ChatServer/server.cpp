@@ -12,6 +12,9 @@
 #include <stdexcept>
 #include <chrono>
 
+// 全局常量定义
+const std::string LOBBY_NAME = "Lobby";
+
 // 全局变量定义
 std::vector<SOCKET> clients;
 std::map<SOCKET, std::string> clientNicknames;
@@ -94,7 +97,7 @@ void cleanupClient(SOCKET clientSocket) {
                 room.mutedUntil.erase(clientSocket);
                 leaveMsg = "LEAVE|" + nickname + " 离开了房间\n";
                 members = room.members;
-                if (room.members.empty() && room.name != "大厅") {
+                if (room.members.empty() && room.name != LOBBY_NAME) {
                     deleteRoomFromDB(room.name);
                     rooms.erase(it);
                     Logger::instance().log("房间 " + room.name + " 因空被删除");
@@ -145,7 +148,7 @@ std::vector<SOCKET> removeFromRoom(SOCKET clientSocket, const std::string& roomN
         room.mutedUntil.erase(clientSocket);
         leaveMsg = "LEAVE|" + clientNicknames[clientSocket] + " 离开了房间\n";
 
-        if (room.members.empty() && room.name != "大厅") {
+        if (room.members.empty() && room.name != LOBBY_NAME) {
             deleteRoomFromDB(roomName);
             rooms.erase(it);
             Logger::instance().log("房间 " + roomName + " 因空被删除");
@@ -293,7 +296,8 @@ void handleJoinRoom(SOCKET clientSocket, const std::string& params) {
 
         // 发送成功响应，附带房主标志
         bool isOwner = (clientUserIds[clientSocket] == room.ownerId);
-        send(clientSocket, ("JOIN_OK|" + roomName + "|" + (isOwner ? "1" : "0") + "\n").c_str(), 0, 0);
+        std::string joinOk = "JOIN_OK|" + roomName + "|" + (isOwner ? "1" : "0") + "\n";
+        send(clientSocket, joinOk.c_str(), (int)joinOk.size(), 0);
 
         if (!leaveBroadcast.empty()) {
             for (SOCKET member : leaveMembers) {
@@ -340,13 +344,15 @@ void handleDismissRoom(SOCKET clientSocket, const std::string& roomName) {
     {
         std::lock_guard<std::mutex> lockClients(clients_mutex);
         for (SOCKET member : members) {
-            clientRooms[member] = "";
+            clientRooms[member] = "Lobby";
         }
     }
 
     std::string dismissMsg = "DISMISS|房间已被房主解散\n";
+    std::string lobbyMsg = "JOIN_OK|Lobby|0\n";
     for (SOCKET member : members) {
         send(member, dismissMsg.c_str(), dismissMsg.size(), 0);
+        send(member, lobbyMsg.c_str(), lobbyMsg.size(), 0);
     }
     broadcastRoomList();
     Logger::instance().log("房主 " + adminNick + " 解散房间 " + roomName);
@@ -402,7 +408,7 @@ void handleMessage(SOCKET clientSocket, const std::string& content) {
         send(clientSocket, "ERROR|未加入房间\n", 18, 0);
         return;
     }
-    if (roomName == "大厅") {
+    if (roomName == LOBBY_NAME) {
         send(clientSocket, "ERROR|大厅不支持聊天，请加入其他房间\n", 38, 0);
         return;
     }
@@ -572,7 +578,8 @@ void handleMute(SOCKET adminSock, const std::string& roomName, const std::string
     room.mutedUntil[targetSock] = until;
     std::string msg = "MUTE|您被禁言 " + std::to_string(minutes) + " 分钟\n";
     send(targetSock, msg.c_str(), msg.size(), 0);
-    send(adminSock, ("MUTE_OK|已禁言 " + targetNick + " " + std::to_string(minutes) + " 分钟\n").c_str(), 0, 0);
+    std::string muteOk = "MUTE_OK|已禁言 " + targetNick + " " + std::to_string(minutes) + " 分钟\n";
+    send(adminSock, muteOk.c_str(), (int)muteOk.size(), 0);
     Logger::instance().log("房主 " + adminNick + " 禁言 " + targetNick + " " + std::to_string(minutes) + " 分钟");
 }
 
@@ -733,18 +740,18 @@ void handle_client(SOCKET clientSocket) {
         // 确保大厅存在
         {
             std::lock_guard<std::mutex> lockRooms(rooms_mutex);
-            if (rooms.find("大厅") == rooms.end()) {
+            if (rooms.find(LOBBY_NAME) == rooms.end()) {
                 Room hall;
-                hall.name = "大厅";
+                hall.name = LOBBY_NAME;
                 hall.isPublic = true;
                 hall.password = "";
                 hall.ownerId = 0;
-                rooms["大厅"] = hall;
-                createRoomInDB("大厅", true, "", 0);
+                rooms[LOBBY_NAME] = hall;
+                createRoomInDB(LOBBY_NAME, true, "", 0);
                 std::cout << "[INFO] 创建默认大厅房间" << std::endl;
             }
         }
-        addToRoom(clientSocket, "大厅");
+        addToRoom(clientSocket, LOBBY_NAME);
         broadcastOnlineCount();  // 广播在线人数
         broadcastRoomList();     // 广播房间列表，让其他用户看到新成员
         handleListRooms(clientSocket); // 发送房间列表给当前用户
@@ -817,14 +824,14 @@ void startServer() {
     loadRoomsFromDB();
     {
         std::lock_guard<std::mutex> lock(rooms_mutex);
-        if (rooms.find("大厅") == rooms.end()) {
+        if (rooms.find(LOBBY_NAME) == rooms.end()) {
             Room hall;
-            hall.name = "大厅";
+            hall.name = LOBBY_NAME;
             hall.isPublic = true;
             hall.password = "";
             hall.ownerId = 0;
-            rooms["大厅"] = hall;
-            createRoomInDB("大厅", true, "", 0);
+            rooms[LOBBY_NAME] = hall;
+            createRoomInDB(LOBBY_NAME, true, "", 0);
             std::cout << "[INFO] 创建默认大厅房间" << std::endl;
         }
     }

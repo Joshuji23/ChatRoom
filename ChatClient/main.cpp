@@ -65,12 +65,11 @@ int main(int argc, char *argv[])
                 delete socket;
                 continue;
             }
-        }
+    }
 
-        if (!isRegister) {
-            socket->write(QString("AUTH|%1|%2\n").arg(username, password).toUtf8());
-            socket->flush();
-        }
+    if (!isRegister) {
+        socket->write(QString("AUTH|%1|%2\n").arg(username, password).toUtf8());
+        socket->flush();
 
         QByteArray buffer;
         while (true) {
@@ -118,14 +117,15 @@ int main(int argc, char *argv[])
             }
             continue;
         }
+    }
 
-        // 进入事件循环，等待大厅窗口关闭
-        int result = a.exec();
-        if (result == 0) {
-            return 0;
-        }
-        // 大厅窗口关闭后，继续 while 循环，重新显示认证对话框
-        // socket 会被 lobby 窗口析构时删除，无需额外处理
+    // 进入事件循环，等待大厅窗口关闭
+    int result = a.exec();
+    if (result == 0) {
+        return 0;
+    }
+    // 大厅窗口关闭后，继续 while 循环，重新显示认证对话框
+    // socket 会被 lobby 窗口析构时删除，无需额外处理
     }
 
     return 0;

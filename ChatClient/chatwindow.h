@@ -31,7 +31,6 @@ private slots:
     void on_muteButton_clicked();
     void onSocketDisconnected();
     void onReadyRead();
-    void on_dismissButton_clicked();
 
 private:
     Ui::ChatWindow *ui;
@@ -41,7 +40,6 @@ private:
     QByteArray m_receiveBuffer;
     bool m_isOwner;
     bool m_closedByServer = false;
-    bool m_isDismissing = false;
     bool m_isLeaving = false;
 
     void addSystemMessage(const QString &msg);

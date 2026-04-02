@@ -19,6 +19,7 @@ public:
 
     void setNickname(const QString &nickname);
     void setSocket(QTcpSocket *socket);
+    void detachSocket();
 
 protected:
     void showEvent(QShowEvent *event) override;
