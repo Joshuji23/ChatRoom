@@ -1,0 +1,17 @@
+{
+  "database": {
+    "host": "127.0.0.1",
+    "user": "root",
+    "password": "123456",
+    "name": "chatdb",
+    "port": 3306
+  },
+  "server": {
+    "port": 8888
+  },
+  "heartbeat": {
+    "ping_interval_sec": 30,
+    "timeout_sec": 90,
+    "check_interval_sec": 10
+  }
+}

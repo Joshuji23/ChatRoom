@@ -1,0 +1,60 @@
+# Visual Studio
+.vs/
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Compiled Object files
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.lib
+*.a
+
+# Qt build files
+Makefile*
+*.pro.user
+*.pro.user.*
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+
+# Database files (if any)
+*.sqlite
+*.db
+
+# Logs
+*.log
+chatroom.log
+
+# IDE and temp files
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.ipch
+*.pdb
+*.ilk
+*.exp
+*.idb
+*.tlog
+
+# Build directories
+build/
+debug/
+release/
+x64/
+x86/
+*.build
+*.sdf
+*.opensdf
+*.VC.db
