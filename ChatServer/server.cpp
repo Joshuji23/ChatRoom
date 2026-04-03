@@ -42,7 +42,10 @@ void broadcastRoomList() {
         std::lock_guard<std::mutex> lock(rooms_mutex);
         for (const auto& pair : rooms) {
             const Room& room = pair.second;
-            roomList += room.name + "|" + (room.isPublic ? "公开" : "私有") + "|" + std::to_string(room.members.size()) + ";";
+            // 跳过大厅，只广播实际创建的房间
+            if (room.name != LOBBY_NAME) {
+                roomList += room.name + "|" + (room.isPublic ? "Public" : "Private") + "|" + std::to_string(room.members.size()) + ";";
+            }
         }
     }
     if (!roomList.empty()) roomList.pop_back();
@@ -390,7 +393,10 @@ void handleListRooms(SOCKET clientSocket) {
     std::string roomList;
     for (const auto& pair : rooms) {
         const Room& room = pair.second;
-        roomList += room.name + "|" + (room.isPublic ? "公开" : "私有") + "|" + std::to_string(room.members.size()) + ";";
+        // 跳过大厅，只发送实际创建的房间
+        if (room.name != LOBBY_NAME) {
+            roomList += room.name + "|" + (room.isPublic ? "Public" : "Private") + "|" + std::to_string(room.members.size()) + ";";
+        }
     }
     if (!roomList.empty()) roomList.pop_back();
     std::string response = "ROOM_LIST|" + roomList + "\n";

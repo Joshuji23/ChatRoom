@@ -139,13 +139,25 @@ void LobbyWindow::showEvent(QShowEvent *event) {
 void LobbyWindow::parseMessage(const QByteArray &line)
 {
     QString str = QString::fromUtf8(line).trimmed();
+    qDebug() << "[DEBUG] LobbyWindow::parseMessage received:" << str;
     QStringList parts = str.split('|');
     if (parts.isEmpty()) return;
 
     QString type = parts[0];
+    qDebug() << "[DEBUG] Message type:" << type << "parts size:" << parts.size();
     if (type == "ROOM_LIST") {
+        qDebug() << "[DEBUG] Processing ROOM_LIST message";
         if (parts.size() >= 2) {
-            updateRoomList(parts[1]);
+            // 房间列表从 parts[1] 开始，需要重新组合
+            QString roomListData = "";
+            for (int i = 1; i < parts.size(); i++) {
+                if (i > 1) roomListData += "|";
+                roomListData += parts[i];
+            }
+            qDebug() << "[DEBUG] Calling updateRoomList with:" << roomListData;
+            updateRoomList(roomListData);
+        } else {
+            qDebug() << "[DEBUG] ROOM_LIST has insufficient parts";
         }
     } else if (type == "CREATE_OK") {
         if (parts.size() < 2) return;
@@ -210,19 +222,24 @@ void LobbyWindow::parseMessage(const QByteArray &line)
 
 void LobbyWindow::updateRoomList(const QString &roomsData)
 {
+    qDebug() << "[DEBUG] updateRoomList called with data:" << roomsData;
     ui->roomListWidget->clear();
     QStringList rooms = roomsData.split(';');
+    qDebug() << "[DEBUG] Split rooms:" << rooms;
     for (const QString &room : rooms) {
         if (room.isEmpty()) continue;
         QStringList attrs = room.split('|');
+        qDebug() << "[DEBUG] Room attrs:" << attrs;
         if (attrs.size() >= 3) {
             QString name = attrs[0];
             QString type = attrs[1];
             QString members = attrs[2];
             QString display = QString("%1 [%2] (%3人)").arg(name, type, members);
+            qDebug() << "[DEBUG] Creating item:" << display;
             QListWidgetItem *item = new QListWidgetItem(display);
             item->setData(Qt::UserRole, name);
             ui->roomListWidget->addItem(item);
         }
     }
+    qDebug() << "[DEBUG] Total items in room list:" << ui->roomListWidget->count();
 }

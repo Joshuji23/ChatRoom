@@ -90,10 +90,17 @@ void ChatWindow::closeEvent(QCloseEvent *event) {
         int ret = QMessageBox::question(this, "退出房间", "确定要退出房间吗？",
                                         QMessageBox::Yes | QMessageBox::No);
         if (ret == QMessageBox::Yes) {
-            sendPacket("LEAVE_ROOM", "");
-            event->ignore();
-            closing = false;
-            return;
+            sendPacket("LEAVE_ROOM", m_roomName);
+            // 立即关闭窗口并返回大厅
+            m_closedByServer = true;
+            if (parentWidget()) {
+                LobbyWindow *lobby = qobject_cast<LobbyWindow*>(parentWidget());
+                if (lobby) {
+                    lobby->setSocket(m_socket);   // 重新接管socket
+                    lobby->show();
+                }
+            }
+            event->accept();
         } else {
             event->ignore();
             closing = false;
@@ -126,7 +133,21 @@ void ChatWindow::on_leaveButton_clicked()
             QApplication::quit();
         }
     } else {
-        sendPacket("LEAVE_ROOM", "");
+        int ret = QMessageBox::question(this, "退出房间", "确定要退出房间吗？",
+                                        QMessageBox::Yes | QMessageBox::No);
+        if (ret == QMessageBox::Yes) {
+            sendPacket("LEAVE_ROOM", m_roomName);
+            // 立即关闭窗口并返回大厅
+            m_closedByServer = true;
+            if (parentWidget()) {
+                LobbyWindow *lobby = qobject_cast<LobbyWindow*>(parentWidget());
+                if (lobby) {
+                    lobby->setSocket(m_socket);   // 重新接管socket
+                    lobby->show();
+                }
+            }
+            close();
+        }
     }
     
     QTimer::singleShot(2000, this, [this]() { m_isLeaving = false; });
