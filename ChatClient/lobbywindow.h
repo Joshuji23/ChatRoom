@@ -29,6 +29,7 @@ private slots:
     void onJoinRoom();
     void onExit();
     void onSocketDisconnected();
+    void onReadyRead();
 
 private:
     Ui::LobbyWindow *ui;

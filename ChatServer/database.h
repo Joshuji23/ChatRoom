@@ -1,6 +1,13 @@
 #ifndef DATABASE_H
 #define DATABASE_H
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
 #include <string>
 #include <mysql.h>
 
@@ -12,10 +19,9 @@ void removeMemberFromRoomDB(int userId, const std::string& roomName);
 void deleteRoomFromDB(const std::string& roomName);
 void loadRoomsFromDB();
 
-// 辅助函数
 std::string getNicknameById(int userId);
 int getRoomIdByName(const std::string& roomName);
-MYSQL* connectDB();  // 声明，供其他模块使用
+MYSQL* connectDB();
 std::string escapeString(MYSQL* conn, const std::string& str);
 
 #endif

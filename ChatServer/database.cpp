@@ -1,9 +1,6 @@
-#include "database.h"
 #include "utils.h"
+#include "database.h"
 #include "config.h"
-#include <mysql.h>
-#include <iostream>
-#include <sstream>
 
 extern AppConfig g_config;
 

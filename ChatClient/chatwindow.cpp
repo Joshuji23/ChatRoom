@@ -7,6 +7,7 @@
 #include <QTimer>
 #include <QCloseEvent>
 #include <QInputDialog>
+#include <QDateTime>
 
 ChatWindow::ChatWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -37,9 +38,26 @@ void ChatWindow::setRoomName(const QString &roomName)
 
 void ChatWindow::setSocket(QTcpSocket *socket)
 {
+    qDebug() << "[ChatWindow] setSocket called, socket=" << socket;
+    if (m_socket) {
+        qDebug() << "[ChatWindow] disconnecting old socket";
+        disconnect(m_socket, nullptr, this, nullptr);
+    }
     m_socket = socket;
-    connect(m_socket, &QTcpSocket::readyRead, this, &ChatWindow::onReadyRead);
-    connect(m_socket, &QTcpSocket::disconnected, this, &ChatWindow::onSocketDisconnected);
+    if (m_socket) {
+        qDebug() << "[ChatWindow] connecting new socket, state=" << m_socket->state();
+        connect(m_socket, &QTcpSocket::readyRead, this, &ChatWindow::onReadyRead);
+        connect(m_socket, &QTcpSocket::disconnected, this, &ChatWindow::onSocketDisconnected);
+    }
+}
+
+void ChatWindow::detachSocket()
+{
+    qDebug() << "[ChatWindow] detachSocket called, socket=" << m_socket;
+    if (m_socket) {
+        disconnect(m_socket, nullptr, this, nullptr);
+        qDebug() << "[ChatWindow] socket disconnected from ChatWindow";
+    }
 }
 
 void ChatWindow::setIsOwner(bool isOwner)
@@ -61,11 +79,11 @@ void ChatWindow::closeEvent(QCloseEvent *event) {
     closing = true;
 
     if (m_closedByServer) {
-        // 关键：返回大厅时重新接管socket
+        detachSocket();
         if (parentWidget()) {
             LobbyWindow *lobby = qobject_cast<LobbyWindow*>(parentWidget());
             if (lobby) {
-                lobby->setSocket(m_socket);   // 重新接管socket
+                lobby->setSocket(m_socket);
             }
         }
         event->accept();
@@ -77,10 +95,8 @@ void ChatWindow::closeEvent(QCloseEvent *event) {
                                         QMessageBox::Yes | QMessageBox::No);
         if (ret == QMessageBox::Yes) {
             sendPacket("DISMISS_ROOM", m_roomName);
-            // 立即关闭窗口并退出程序
             m_closedByServer = true;
             event->accept();
-            // 退出程序
             QApplication::quit();
         } else {
             event->ignore();
@@ -91,12 +107,12 @@ void ChatWindow::closeEvent(QCloseEvent *event) {
                                         QMessageBox::Yes | QMessageBox::No);
         if (ret == QMessageBox::Yes) {
             sendPacket("LEAVE_ROOM", m_roomName);
-            // 立即关闭窗口并返回大厅
             m_closedByServer = true;
+            detachSocket();
             if (parentWidget()) {
                 LobbyWindow *lobby = qobject_cast<LobbyWindow*>(parentWidget());
                 if (lobby) {
-                    lobby->setSocket(m_socket);   // 重新接管socket
+                    lobby->setSocket(m_socket);
                     lobby->show();
                 }
             }
@@ -114,7 +130,8 @@ void ChatWindow::on_sendButton_clicked()
     QString msg = ui->lineEdit->text();
     if (msg.isEmpty()) return;
     sendPacket("MSG", msg);
-    ui->textEdit->append(QString("%1: %2").arg(m_nickname, msg));
+    QString time = QDateTime::currentDateTime().toString("hh:mm:ss");
+    ui->textEdit->append(QString("[%1] %2: %3").arg(time, m_nickname, msg));
     ui->lineEdit->clear();
 }
 
@@ -128,7 +145,6 @@ void ChatWindow::on_leaveButton_clicked()
                                         QMessageBox::Yes | QMessageBox::No);
         if (ret == QMessageBox::Yes) {
             sendPacket("DISMISS_ROOM", m_roomName);
-            // 立即关闭窗口并退出程序
             m_closedByServer = true;
             QApplication::quit();
         }
@@ -137,12 +153,12 @@ void ChatWindow::on_leaveButton_clicked()
                                         QMessageBox::Yes | QMessageBox::No);
         if (ret == QMessageBox::Yes) {
             sendPacket("LEAVE_ROOM", m_roomName);
-            // 立即关闭窗口并返回大厅
             m_closedByServer = true;
+            detachSocket();
             if (parentWidget()) {
                 LobbyWindow *lobby = qobject_cast<LobbyWindow*>(parentWidget());
                 if (lobby) {
-                    lobby->setSocket(m_socket);   // 重新接管socket
+                    lobby->setSocket(m_socket);
                     lobby->show();
                 }
             }
@@ -201,20 +217,22 @@ void ChatWindow::onSocketDisconnected()
 void ChatWindow::onReadyRead()
 {
     QByteArray data = m_socket->readAll();
-    qDebug() << "Raw data received:" << data;  // 需 #include <QDebug>
+    qDebug() << "[ChatWindow] Raw data received:" << data;
     m_receiveBuffer.append(data);
 
     int pos;
     while ((pos = m_receiveBuffer.indexOf('\n')) != -1) {
         QByteArray line = m_receiveBuffer.left(pos);
         m_receiveBuffer.remove(0, pos + 1);
+        qDebug() << "[ChatWindow] Processing line:" << line;
         parseMessage(line);
     }
 }
 
 void ChatWindow::addSystemMessage(const QString &msg)
 {
-    ui->textEdit->append(QString("[系统] %1").arg(msg));
+    QString time = QDateTime::currentDateTime().toString("hh:mm:ss");
+    ui->textEdit->append(QString("<span style='color: #FFD700; font-weight: bold;'>[%1] [系统] %2</span>").arg(time, msg));
 }
 
 void ChatWindow::sendPacket(const QString &type, const QString &data)
@@ -232,99 +250,109 @@ void ChatWindow::sendPacket(const QString &type, const QString &data)
 void ChatWindow::parseMessage(const QByteArray &line)
 {
     QString str = QString::fromUtf8(line).trimmed();
-    QStringList parts = str.split('|');
-    if (parts.isEmpty()) return;
+    qDebug() << "[ChatWindow] parseMessage:" << str;
+    int sepPos = str.indexOf('|');
+    if (sepPos == -1) return;
+    QString type = str.left(sepPos);
+    QString data = str.mid(sepPos + 1);
+    qDebug() << "[ChatWindow] type:" << type << "data:" << data;
 
-    QString type = parts[0];
     if (type == "MSG") {
-        if (parts.size() >= 2) {
-            ui->textEdit->append(parts[1]);
-        }
+        QString time = QDateTime::currentDateTime().toString("hh:mm:ss");
+        ui->textEdit->append(QString("[%1] %2").arg(time, data));
     } else if (type == "NICK") {
-        addSystemMessage(parts[1]);
+        addSystemMessage(data);
     } else if (type == "LEAVE") {
-        addSystemMessage(parts[1]);
+        addSystemMessage(data);
     } else if (type == "LEAVE_ROOM_OK") {
         addSystemMessage("已退出房间");
         m_closedByServer = true;
+        detachSocket();
         if (parentWidget()) {
             LobbyWindow *lobby = qobject_cast<LobbyWindow*>(parentWidget());
             if (lobby) {
-                lobby->setSocket(m_socket);   // 重新接管socket
+                lobby->setSocket(m_socket);
                 lobby->show();
             }
         }
         close();
     } else if (type == "ERROR") {
-        addSystemMessage(parts[1]);
+        addSystemMessage(data);
     } else if (type == "HISTORY") {
-        if (parts.size() >= 2) {
-            ui->textEdit->append(parts[1]);   // 历史消息显示
+        QString time = QDateTime::currentDateTime().toString("hh:mm:ss");
+        int parenPos = data.lastIndexOf('(');
+        if (parenPos != -1) {
+            QString msgContent = data.left(parenPos).trimmed();
+            QString originalTime = data.mid(parenPos + 1).chopped(1);
+            ui->textEdit->append(QString("[%1] %2").arg(originalTime, msgContent));
+        } else {
+            ui->textEdit->append(QString("[%1] %2").arg(time, data));
         }
     } else if (type == "HISTORY_END") {
         addSystemMessage("--- 历史消息加载完毕 ---");
     } else if (type == "KICK") {
-        addSystemMessage(parts[1]);
+        addSystemMessage(data);
         m_closedByServer = true;
+        detachSocket();
         if (parentWidget()) {
             LobbyWindow *lobby = qobject_cast<LobbyWindow*>(parentWidget());
             if (lobby) {
-                lobby->setSocket(m_socket);   // 重新接管socket
+                lobby->setSocket(m_socket);
                 lobby->show();
             }
         }
         close();
     } else if (type == "KICK_OK") {
-        addSystemMessage(parts[1]);
+        addSystemMessage(data);
         m_closedByServer = true;
+        detachSocket();
         if (parentWidget()) {
             LobbyWindow *lobby = qobject_cast<LobbyWindow*>(parentWidget());
             if (lobby) {
-                lobby->setSocket(m_socket);   // 重新接管socket
+                lobby->setSocket(m_socket);
                 lobby->show();
             }
         }
         close();
     } else if (type == "KICK_FAIL") {
-        qDebug() << "Received KICK_FAIL, parts:" << parts;
-        QString reason = parts.size() > 1 ? parts[1] : "未知错误";
-        QMessageBox::warning(this, "踢人失败", reason);
-        addSystemMessage("踢人失败: " + reason);
+        qDebug() << "Received KICK_FAIL, data:" << data;
+        QMessageBox::warning(this, "踢人失败", data);
+        addSystemMessage("踢人失败: " + data);
     } else if (type == "MUTE") {
-        addSystemMessage(parts[1]);  // 禁言通知
+        addSystemMessage(data);
     } else if (type == "MUTE_OK") {
-        addSystemMessage(parts[1]);  // 禁言成功反馈
+        addSystemMessage(data);
     } else if (type == "MUTE_FAIL") {
-        qDebug() << "Received MUTE_FAIL, parts:" << parts;
-        QString reason = parts.size() > 1 ? parts[1] : "未知错误";
-        QMessageBox::warning(this, "禁言失败", reason);
-        addSystemMessage("禁言失败: " + reason);
+        qDebug() << "Received MUTE_FAIL, data:" << data;
+        QMessageBox::warning(this, "禁言失败", data);
+        addSystemMessage("禁言失败: " + data);
     } else if (type == "DISMISS") {
-        addSystemMessage(parts[1]);
+        addSystemMessage(data);
         m_closedByServer = true;
+        detachSocket();
         if (parentWidget()) {
             LobbyWindow *lobby = qobject_cast<LobbyWindow*>(parentWidget());
             if (lobby) {
-                lobby->setSocket(m_socket);   // 重新接管socket
+                lobby->setSocket(m_socket);
                 lobby->show();
             }
         }
         close();
-    }
-    else if (type == "DISMISS_OK") {
+    } else if (type == "DISMISS_OK") {
         addSystemMessage("房间已解散");
         m_closedByServer = true;
+        detachSocket();
         if (parentWidget()) {
             LobbyWindow *lobby = qobject_cast<LobbyWindow*>(parentWidget());
             if (lobby) {
-                lobby->setSocket(m_socket);   // 重新接管socket
+                lobby->setSocket(m_socket);
                 lobby->show();
             }
         }
         close();
     } else if (type == "DISMISS_FAIL") {
-        addSystemMessage("解散失败: " + parts[1]);
-    }else if (type == "PONG") {
-        // 忽略
+        addSystemMessage("解散失败: " + data);
+    } else if (type == "PONG") {
+        // ignore
     }
 }

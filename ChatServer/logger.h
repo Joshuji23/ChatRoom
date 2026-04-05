@@ -1,10 +1,10 @@
 #pragma once
 #include <fstream>
-#include <mutex>
 #include <chrono>
 #include <ctime>
 #include <string>
 #include <iostream>
+#include "win_mutex.h"
 
 class Logger {
 public:
@@ -13,7 +13,7 @@ public:
         return logger;
     }
     void log(const std::string& msg) {
-        std::lock_guard<std::mutex> lock(mtx);
+        WinLockGuard<WinMutex> lock(mtx);
         if (!file.is_open()) return;
         auto now = std::chrono::system_clock::now();
         std::time_t now_c = std::chrono::system_clock::to_time_t(now);
@@ -28,12 +28,12 @@ private:
     Logger() {
         file.open("chatroom.log", std::ios::out | std::ios::app);
         if (!file.is_open()) {
-            std::cerr << "无法打开日志文件" << std::endl;
+            std::cerr << "Cannot open log file" << std::endl;
         }
     }
     ~Logger() {
         if (file.is_open()) file.close();
     }
     std::ofstream file;
-    std::mutex mtx;
+    WinMutex mtx;
 };

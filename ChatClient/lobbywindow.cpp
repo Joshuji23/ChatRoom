@@ -41,26 +41,40 @@ void LobbyWindow::setNickname(const QString &nickname)
 
 void LobbyWindow::detachSocket()
 {
+    qDebug() << "[LobbyWindow] detachSocket called, socket=" << m_socket;
     if (!m_socket) return;
     disconnect(m_socket, nullptr, this, nullptr);
+    qDebug() << "[LobbyWindow] socket disconnected from LobbyWindow";
 }
 
 void LobbyWindow::setSocket(QTcpSocket *socket)
 {
+    qDebug() << "[LobbyWindow] setSocket called, socket=" << socket;
+    if (m_socket) {
+        qDebug() << "[LobbyWindow] disconnecting old socket";
+        disconnect(m_socket, nullptr, this, nullptr);
+    }
     m_socket = socket;
-    connect(m_socket, &QTcpSocket::readyRead, [this]() {
-        m_receiveBuffer.append(m_socket->readAll());
-        int pos;
-        while ((pos = m_receiveBuffer.indexOf('\n')) != -1) {
-            QByteArray line = m_receiveBuffer.left(pos);
-            m_receiveBuffer.remove(0, pos + 1);
-            parseMessage(line);
-        }
-    });
-    connect(m_socket, &QTcpSocket::disconnected, this, &LobbyWindow::onSocketDisconnected);
-    QTimer::singleShot(100, this, [this](){
-        sendPacket("LIST_ROOMS", "");
-    });
+    if (m_socket) {
+        qDebug() << "[LobbyWindow] connecting new socket, state=" << m_socket->state();
+        connect(m_socket, &QTcpSocket::readyRead, this, &LobbyWindow::onReadyRead);
+        connect(m_socket, &QTcpSocket::disconnected, this, &LobbyWindow::onSocketDisconnected);
+        QTimer::singleShot(100, this, [this](){
+            sendPacket("LIST_ROOMS", "");
+        });
+    }
+}
+
+void LobbyWindow::onReadyRead()
+{
+    qDebug() << "[LobbyWindow] onReadyRead called";
+    m_receiveBuffer.append(m_socket->readAll());
+    int pos;
+    while ((pos = m_receiveBuffer.indexOf('\n')) != -1) {
+        QByteArray line = m_receiveBuffer.left(pos);
+        m_receiveBuffer.remove(0, pos + 1);
+        parseMessage(line);
+    }
 }
 
 void LobbyWindow::onCreateRoom()

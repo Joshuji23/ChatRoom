@@ -31,7 +31,7 @@ struct AppConfig {
 inline AppConfig loadConfig(const std::string& path = "config.json") {
     std::ifstream f(path);
     if (!f.is_open()) {
-        std::cerr << "[ERROR] 无法打开配置文件: " << path << std::endl;
+        std::cerr << "[ERROR] Cannot open config file: " << path << std::endl;
         exit(1);
     }
     nlohmann::json j;

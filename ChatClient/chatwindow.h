@@ -20,6 +20,7 @@ public:
     void setRoomName(const QString &roomName);
     void setSocket(QTcpSocket *socket);
     void setIsOwner(bool isOwner);
+    void detachSocket();
 
 protected:
     void closeEvent(QCloseEvent *event) override;
