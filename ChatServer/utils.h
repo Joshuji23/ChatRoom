@@ -13,16 +13,15 @@
 #include <map>
 #include <iostream>
 #include <chrono>
+#include <mutex>      
+#include <thread>
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
-#include "win_mutex.h"
-#include "win_thread.h"
-
-typedef WinMutex Mutex;
-typedef WinLockGuard<WinMutex> LockGuard;
-typedef WinThread Thread;
+using Mutex = std::recursive_mutex;
+using LockGuard = std::lock_guard<std::recursive_mutex>;
+using Thread = std::thread;
 
 struct Room {
     std::string name;

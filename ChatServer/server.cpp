@@ -5,6 +5,7 @@
 #include <map>
 #include <stdexcept>
 #include <chrono>
+#include <thread>         
 #include "utils.h"
 #include "database.h"
 #include "config.h"
@@ -671,7 +672,8 @@ void processClientMessage(SOCKET clientSocket, const std::string& line) {
         std::string targetNick = parts[1];
         int minutes = std::stoi(parts[2]);
         handleMute(clientSocket, roomName, targetNick, minutes);
-    }else if (type == "DISMISS_ROOM") {
+    }
+    else if (type == "DISMISS_ROOM") {
         handleDismissRoom(clientSocket, data);
     }
 }
@@ -845,9 +847,9 @@ void startServer() {
         }
     }
 
-    Thread heartbeatChecker([]() {
+    std::thread heartbeatChecker([]() {
         while (true) {
-            Sleep(g_config.heartbeat.check_interval_sec * 1000);
+            std::this_thread::sleep_for(std::chrono::seconds(g_config.heartbeat.check_interval_sec));
             auto now = std::chrono::steady_clock::now();
             LockGuard lock(clients_mutex);
             std::vector<SOCKET> toKill;
@@ -874,7 +876,7 @@ void startServer() {
             continue;
         }
         std::cout << "[INFO] New client connected" << std::endl;
-        Thread(handle_client, clientSocket).detach();
+        std::thread(handle_client, clientSocket).detach();
     }
 
     closesocket(serverSocket);

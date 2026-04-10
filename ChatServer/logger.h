@@ -4,7 +4,7 @@
 #include <ctime>
 #include <string>
 #include <iostream>
-#include "win_mutex.h"
+#include <mutex>
 
 class Logger {
 public:
@@ -13,12 +13,12 @@ public:
         return logger;
     }
     void log(const std::string& msg) {
-        WinLockGuard<WinMutex> lock(mtx);
+        std::lock_guard<std::mutex> lock(mtx);
         if (!file.is_open()) return;
         auto now = std::chrono::system_clock::now();
         std::time_t now_c = std::chrono::system_clock::to_time_t(now);
         std::tm tm_buf;
-        localtime_s(&tm_buf, &now_c); 
+        localtime_s(&tm_buf, &now_c);
         char buf[64];
         std::strftime(buf, sizeof(buf), "[%Y-%m-%d %H:%M:%S] ", &tm_buf);
         file << buf << msg << std::endl;
@@ -35,5 +35,5 @@ private:
         if (file.is_open()) file.close();
     }
     std::ofstream file;
-    WinMutex mtx;
+    std::mutex mtx;
 };
