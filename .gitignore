@@ -26,6 +26,11 @@ packages.config
 *.tlog
 *.manifest
 
+# SQLite specific files
+sqlite3.exp
+sqlite3.def
+shell.c
+
 # Qt build files
 Makefile*
 *.pro.user
@@ -42,6 +47,7 @@ qrc_*.cpp
 *.db
 rag_index.db
 *.VC.db
+rag_index/
 
 # Logs
 *.log
@@ -66,6 +72,8 @@ x86/
 *.build
 ChatServer/x64/
 ChatClient/build/
+Debug/
+Release/
 
 # Config files with secrets
 config.json
