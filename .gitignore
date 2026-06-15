@@ -1,0 +1,113 @@
+# Visual Studio
+.vs/
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+packages.config
+
+# Compiled Object files
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.lib
+*.a
+*.exp
+*.pdb
+*.ilk
+*.idb
+*.tlog
+*.manifest
+
+# Qt build files
+Makefile*
+*.pro.user
+*.pro.user.*
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+.qmake.stash
+.qtc_clangd/
+.qtcreator/
+
+# Database files
+*.sqlite
+*.db
+rag_index.db
+*.VC.db
+
+# Logs
+*.log
+chatroom.log
+
+# IDE and temp files
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.ipch
+*.sdf
+*.opensdf
+
+# Build directories
+build/
+debug/
+release/
+x64/
+x86/
+*.build
+ChatServer/x64/
+ChatClient/build/
+
+# Config files with secrets
+config.json
+config.*.json
+last_rag_id.txt
+
+# RAG database files
+chroma_data/
+rag_data/
+
+# Environment files
+.env
+.env.*
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Virtual environment
+chroma_env/
+venv/
+.env/
+
+# Local documentation
+启动指南.md
+*.md
+
+# SSL certificates
+*.pem
+*.key
+*.crt
+
+# npm/yarn
+node_modules/
+package-lock.json
+yarn.lock
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+CTestTestfile.cmake
